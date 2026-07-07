@@ -142,7 +142,8 @@ class FileIndex:
         self.sandbox_root = Path(os.path.realpath(str(sandbox_root)))
         self.db_path = db_path or (self.sandbox_root / "file_index.sqlite3")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.RLock()
+        self._lock = threading.RLock()   # serialises all DB *writes*
+        self._state_lock = threading.Lock()  # guards Python-level flags only (never held during DB I/O)
         self._trigram_available = False
         self._watcher = None
         self._monitoring_started = False
@@ -185,6 +186,29 @@ class FileIndex:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA busy_timeout=8000")
             conn.execute("PRAGMA synchronous=NORMAL")
+            yield conn
+        finally:
+            conn.close()
+
+    @contextlib.contextmanager
+    def _read_connect(self):
+        """
+        Read-only connection for search(). In WAL mode, readers open a
+        consistent snapshot and NEVER block on concurrent writers -- they
+        read from the WAL file directly. Using uri=True + ?mode=ro makes
+        SQLite refuse any write attempt (safety net) and skip the write-lock
+        acquisition entirely, so search is guaranteed non-blocking.
+        """
+        db_uri = "file:" + str(self.db_path).replace("\\", "/") + "?mode=ro"
+        try:
+            conn = sqlite3.connect(db_uri, uri=True, check_same_thread=False, timeout=0.5)
+        except sqlite3.OperationalError:
+            # DB doesn't exist yet (very first cold start before any flush)
+            # Fall back to a normal connection so the caller gets an empty result
+            conn = sqlite3.connect(str(self.db_path), check_same_thread=False, timeout=0.5)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.row_factory = sqlite3.Row
             yield conn
         finally:
             conn.close()
@@ -454,16 +478,17 @@ class FileIndex:
         return total
 
     def _root_is_empty(self, root_str: str) -> bool:
-        """True if this root has no rows yet -- i.e. this build() call is a
-        genuine cold start for this root, not a rebuild/refresh of an
-        already-populated index. Cheap: uses idx_files_root."""
-        with self._lock, self._connect() as conn:
-            row = conn.execute(
-                "SELECT EXISTS(SELECT 1 FROM files WHERE root = ? LIMIT 1)", (root_str,)
-            ).fetchone()
-            return not bool(row[0])
+        """True if this root has no rows yet -- cold start check. Read-only, non-blocking."""
+        try:
+            with self._read_connect() as conn:
+                row = conn.execute(
+                    "SELECT EXISTS(SELECT 1 FROM files WHERE root = ? LIMIT 1)", (root_str,)
+                ).fetchone()
+                return not bool(row[0])
+        except Exception:
+            return True  # Treat as empty on any error (will trigger build)
 
-    def build(self, progress_cb=None, batch_size: int = 2000) -> int:
+    def build(self, progress_cb=None, batch_size: int = 500) -> int:
         """
         Full (re)scan of sandbox_root into the index.
 
@@ -569,6 +594,7 @@ class FileIndex:
                         [(r[0], r[1]) for r in new_rows],
                     )
                 conn.commit()
+            time.sleep(0.02)  # Yield lock to prevent starving searches during massive builds
 
         def flush_batch(force=False):
             nonlocal batch, total
@@ -686,18 +712,22 @@ class FileIndex:
                     "SELECT path FROM files WHERE root = ?", (root_str,)
                 ).fetchall()
             }
-        stale = existing - seen_paths
+        stale = list(existing - seen_paths)
         if stale:
-            with self._lock, self._connect() as conn:
-                conn.executemany(
-                    "DELETE FROM files WHERE root = ? AND path = ?",
-                    [(root_str, p) for p in stale],
-                )
-                if self._trigram_available:
+            batch_size = 5000
+            for i in range(0, len(stale), batch_size):
+                chunk = stale[i:i + batch_size]
+                with self._lock, self._connect() as conn:
                     conn.executemany(
-                        "DELETE FROM files_fts WHERE path = ?", [(p,) for p in stale]
+                        "DELETE FROM files WHERE root = ? AND path = ?",
+                        [(root_str, p) for p in chunk],
                     )
-                conn.commit()
+                    if self._trigram_available:
+                        conn.executemany(
+                            "DELETE FROM files_fts WHERE path = ?", [(p,) for p in chunk]
+                        )
+                    conn.commit()
+                time.sleep(0.01)  # Yield lock to prevent starving searches during massive sweeps
 
         return total
 
@@ -711,7 +741,11 @@ class FileIndex:
         max_results: int = 10,
     ) -> list[dict]:
         root_str = str(self.sandbox_root)
-        with self._lock, self._connect() as conn:
+        try:
+            ctx = self._read_connect()
+        except Exception:
+            ctx = self._connect()
+        with ctx as conn:
             conn.row_factory = sqlite3.Row
 
             candidate_paths: Optional[set[str]] = None
@@ -893,7 +927,7 @@ def ensure_built(sandbox_root: Path, background_refresh: bool = True) -> FileInd
     """
     idx = get_index(sandbox_root)
 
-    with idx._lock:
+    with idx._state_lock:
         start_build = not idx._build_started
         if start_build:
             idx._build_started = True
@@ -923,8 +957,11 @@ def ensure_built(sandbox_root: Path, background_refresh: bool = True) -> FileInd
                     pass
             idx.is_building = False
 
-            if background_refresh and not idx._monitoring_started:
-                idx._monitoring_started = True
+            with idx._state_lock:
+                already = idx._monitoring_started
+                if not already:
+                    idx._monitoring_started = True
+            if background_refresh and not already:
                 watching = idx.start_watching()
                 idx.start_background_refresh(interval_seconds=3600 if watching else 300)
 

@@ -589,37 +589,47 @@ def _sort_local_results(results: list[dict]) -> list[dict]:
 
 def _iter_files_bounded(root: Path, deadline: float, max_files: int):
     """Yield files breadth-first without letting a drive-root search run forever."""
-    queue = [root]
+    import os
+    queue = [str(root)]
     visited_files = 0
     while queue and visited_files < max_files and time.monotonic() < deadline:
-        current = queue.pop(0)
+        current_str = queue.pop(0)
         try:
-            entries = list(current.iterdir())
+            with os.scandir(current_str) as it:
+                entries = list(it)
         except Exception:
             continue
 
         dirs = []
         files = []
         for entry in entries:
+            if time.monotonic() >= deadline:
+                return
             try:
-                if entry.is_file():
+                # follow_symlinks=False is CRITICAL here to prevent multi-minute hangs
+                # on unresponsive Windows junctions, OneDrive placeholders, or disconnected shares.
+                if entry.is_file(follow_symlinks=False):
                     files.append(entry)
-                elif entry.is_dir():
+                elif entry.is_dir(follow_symlinks=False):
                     if entry.name.lower() in _STOP_WORDS or entry.name.lower() in {"$recycle.bin", "system volume information"}:
                         continue
                     dirs.append(entry)
             except Exception:
                 continue
+        
         for entry in sorted(files, key=lambda p: p.name.lower()):
             visited_files += 1
-            yield entry
+            yield Path(entry.path)
             if visited_files >= max_files or time.monotonic() >= deadline:
                 return
-        queue.extend(sorted(dirs, key=_dir_priority))
+        
+        # queue.extend expects strings now, not Path objects
+        for d in sorted(dirs, key=_dir_priority_scandir):
+            queue.append(d.path)
 
 
-def _dir_priority(path: Path) -> tuple[int, str]:
-    name = path.name.lower()
+def _dir_priority_scandir(entry) -> tuple[int, str]:
+    name = entry.name.lower()
     preferred = {
         "echolocate": 0,
         "sandbox_root": 1,
