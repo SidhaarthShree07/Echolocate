@@ -912,14 +912,15 @@ def ensure_built(sandbox_root: Path, background_refresh: bool = True) -> FileInd
 
             if not caught_up:
                 is_empty = idx._root_is_empty(str(idx.sandbox_root))
-                if not is_empty:
+                if is_empty and is_broad_root(idx.sandbox_root):
+                    print(f"[search_files] Using custom SQLite full-drive index for {idx.sandbox_root}. "
+                          f"This will build in the background and may take a moment for the first run, "
+                          f"but searches will be instant thereafter.")
+                try:
+                    idx.build(progress_cb=lambda c: None)
+                    idx._record_journal_cursor_best_effort()
+                except Exception as exc:
                     pass
-                else:
-                    try:
-                        n = idx.build(progress_cb=lambda c: None)
-                        idx._record_journal_cursor_best_effort()
-                    except Exception as exc:
-                        pass
             idx.is_building = False
 
             if background_refresh and not idx._monitoring_started:

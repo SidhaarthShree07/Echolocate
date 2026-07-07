@@ -49,10 +49,8 @@ def search_files(
         List of dicts with keys: name, path (sandbox-relative), size_bytes,
         modified_iso, file_type, match_score. Sorted best-match-first.
     """
-    if _is_drive_root(sandbox_root):
-        print(f"[search_files] Using custom SQLite full-drive index for {sandbox_root}. "
-              f"This will build in the background and may take a moment for the first run, "
-              f"but searches will be instant thereafter.")
+    # The print statement that was here has been removed to prevent console spam.
+    # We now handle startup logging in index.py during the actual build phase.
 
     index = ensure_built(sandbox_root)
     return index.search(
