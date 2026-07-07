@@ -762,7 +762,7 @@ class FileIndex:
                     
                     for t in terms:
                         if len(t) < 3:
-                            processed_terms.append(t)
+                            processed_terms.append(f'"{t}"')
                             continue
                         
                         # Quick check: does this term match anything on its own?
@@ -772,25 +772,25 @@ class FileIndex:
                         ).fetchone()
                         
                         if cur_check and cur_check[0]:
-                            processed_terms.append(t)
+                            processed_terms.append(f'"{t}"')
                         elif len(t) >= 6:
                             # If it matches nothing and is long, try splitting it into two sub-words
                             split_found = False
                             for i in range(3, len(t) - 2):
                                 p1, p2 = t[:i], t[i:]
-                                split_query = f"{p1} AND {p2}"
+                                split_query = f'"{p1}" AND "{p2}"'
                                 cur_split = conn.execute(
                                     "SELECT EXISTS(SELECT 1 FROM files_fts WHERE files_fts MATCH ? LIMIT 1)",
                                     (split_query,),
                                 ).fetchone()
                                 if cur_split and cur_split[0]:
-                                    processed_terms.append(f"({p1} AND {p2})")
+                                    processed_terms.append(f'("{p1}" AND "{p2}")')
                                     split_found = True
                                     break
                             if not split_found:
-                                processed_terms.append(t)
+                                processed_terms.append(f'"{t}"')
                         else:
-                            processed_terms.append(t)
+                            processed_terms.append(f'"{t}"')
                             
                     fts_query = " AND ".join(processed_terms) if processed_terms else ""
                     if fts_query:
