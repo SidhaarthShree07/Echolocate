@@ -538,6 +538,7 @@ def _score_local_candidate(
             score += sum(10 for word in fragment_words if word == stem_lower)
             score += sum(4 for word in fragment_words if word in name_lower)
             score += sum(1 for word in fragment_words if word in rel.lower() and word not in name_lower)
+            
             if score == 0:
                 return None
         if keyword and ext in {"txt", "md"}:
