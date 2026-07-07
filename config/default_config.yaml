@@ -16,7 +16,7 @@ tts_engine: kokoro
 tts_speed: 1.0
 tts_voice: af_heart
 vad_min_speech_ms: 350
-vad_silence_ms: 1200
+vad_silence_ms: 3000
 vad_threshold: 0.65
 wake_ack_phrase: yes boss
 wake_word_model: hey_friday

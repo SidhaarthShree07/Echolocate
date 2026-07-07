@@ -837,13 +837,21 @@ class FileIndex:
         results = []
         for r in rows:
             if content_keyword and r["ext"] in {"txt", "md"}:
-                abs_path = self.sandbox_root / r["path"]
-                try:
-                    text = abs_path.read_text(encoding="utf-8", errors="ignore")
-                except OSError:
-                    continue
-                if content_keyword.lower() not in text.lower():
-                    continue
+                # Only strictly filter by content if the filename itself doesn't already match the search term.
+                # This prevents discarding valid filename matches (e.g. hello.txt) just because the search term
+                # doesn't appear inside the file's body.
+                name_matched = False
+                if content_keyword:
+                    name_matched = content_keyword.lower().strip() in r["name"].lower()
+                
+                if not name_matched:
+                    abs_path = self.sandbox_root / r["path"]
+                    try:
+                        text = abs_path.read_text(encoding="utf-8", errors="ignore")
+                    except OSError:
+                        continue
+                    if content_keyword.lower() not in text.lower():
+                        continue
 
             score = _match_score(filename_fragment, r["name"]) if filename_fragment else 0
             results.append({

@@ -330,7 +330,7 @@ Output ONLY the summary, no preamble."""
         if stream:
             def _iter_response() -> Iterator[str]:
                 try:
-                    with _req.urlopen(request, timeout=60) as resp:
+                    with _req.urlopen(request, timeout=120) as resp:
                         for line in resp:
                             if not line:
                                 continue
@@ -347,7 +347,7 @@ Output ONLY the summary, no preamble."""
             return _iter_response()
 
         try:
-            with _req.urlopen(request, timeout=60) as resp:
+            with _req.urlopen(request, timeout=120) as resp:
                 data = _json.loads(resp.read())
                 return (data.get("message", {}).get("content", "") or "").strip()
         except Exception as exc:

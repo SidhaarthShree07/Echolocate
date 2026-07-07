@@ -75,11 +75,7 @@ class FileSearchNode:
         """
         Execute the file search and return a spoken response.
         """
-        _t0 = time.time()
-        try:
-            return self._run(clf, session_state)
-        finally:
-            print(f"[FileSearch] run() took {time.time() - _t0:.1f}s")
+        return self._run(clf, session_state)
 
     def _run(
         self,
@@ -168,7 +164,6 @@ class FileSearchNode:
             return f"I couldn't find {query_desc} in your files. Can you describe it differently?"
 
         # Location-aware narrowing -- "root"/"top level" or a named folder
-        # beats every other heuristic when it actually narrows the set.
         results = _apply_location_hint(results, location_hint, raw_utterance or file_reference or "")
 
         if len(results) == 1:
@@ -477,9 +472,6 @@ def _local_search(
         result = _score_local_candidate(sandbox_root, path, fragment_words, wanted_ext, modified_date, keyword)
         if result:
             results.append(result)
-
-    if visited >= max_files or time.monotonic() >= deadline:
-        print(f"[FileSearch] bounded direct search stopped after {visited} files; results may be incomplete.")
 
     return _sort_local_results(results)[:max_results]
 

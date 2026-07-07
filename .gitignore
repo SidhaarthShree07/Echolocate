@@ -1,4 +1,20 @@
-
 # Generated Models and Untracked Docs
-models/tts/
-doc/untracked/
+models/
+doc/
+sandbox_root/
+
+# Python caching
+__pycache__/
+*.pyc
+
+# Venv and packaging
+.venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# SQLite databases
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm

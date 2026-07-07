@@ -266,8 +266,21 @@ class IntentRouter:
                 candidate = (pi.partial_entities or {}).get("candidate_file")
                 session_state.pending_intent = None
                 if answer:
+                    intent = pi.original_intent or "file_search"
+                    lower = utterance.lower()
+                    read_aloud = bool(re.search(r"\b(read aloud|speak|narrate)\b", lower))
+                    qa_or_summary = bool(re.search(r"\b(summarize|summarized|summary|what|why|how|tell me|explain)\b", lower))
+                    delete = bool(re.search(r"\b(delete|remove)\b", lower))
+                    
+                    if delete:
+                        intent = "system_action"
+                    elif read_aloud:
+                        intent = "document_read_aloud"
+                    elif qa_or_summary:
+                        intent = "document_qa"
+                        
                     clf = ClassifierOutput(
-                        intent=pi.original_intent or "file_search", confidence=1.0,
+                        intent=intent, confidence=1.0,
                         extracted_entities={"file_reference": candidate, "_confirmed_file": True},
                     )
                 else:
@@ -293,11 +306,28 @@ class IntentRouter:
             if candidates:
                 matched = _resolve_pending_candidate(utterance, candidates)
                 if matched:
+                    intent = pi.original_intent or "file_search"
+                    lower = utterance.lower()
+                    read_aloud = bool(re.search(r"\b(read aloud|speak|narrate)\b", lower))
+                    qa_or_summary = bool(re.search(r"\b(summarize|summarized|summary|what|why|how|tell me|explain)\b", lower))
+                    delete = bool(re.search(r"\b(delete|remove)\b", lower))
+                    
+                    if delete:
+                        intent = "system_action"
+                    elif read_aloud:
+                        intent = "document_read_aloud"
+                    elif qa_or_summary:
+                        intent = "document_qa"
+                        
                     entities = dict((pi.partial_entities or {}).get("original_entities") or {})
                     entities.update({"file_reference": matched, "_confirmed_file": True})
+                    
+                    if intent == "document_qa" and not entities.get("question"):
+                        entities["question"] = "Retrieve the content from this file." if "content" in lower else utterance
+                        
                     session_state.pending_intent = None
                     clf = ClassifierOutput(
-                        intent=pi.original_intent or "file_search", confidence=1.0,
+                        intent=intent, confidence=1.0,
                         extracted_entities=entities,
                     )
                     clf._raw_utterance = original_utterance
@@ -350,7 +380,6 @@ class IntentRouter:
             return None
         if not self._entities_satisfied(clf, session_state):
             return None
-        print(f"[Router] fast deterministic route: intent={clf.intent}, confidence={clf.confidence:.2f}")
         return clf
 
     def _dispatch(
@@ -647,8 +676,6 @@ No specific question or system action is requested.
         else:
             intent = "clarification_needed"
             confidence = 0.0
-
-        print(f"[Router] using deterministic fallback classifier: intent={intent}, confidence={confidence:.2f}")
         return ClassifierOutput(intent=intent, confidence=confidence, extracted_entities=entities)
 
     def _extract_fallback_file_reference(self, lower: str) -> Optional[str]:
