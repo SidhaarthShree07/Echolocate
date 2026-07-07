@@ -34,7 +34,7 @@ def test_indirect_summary_command_uses_router_llm_when_available(tmp_path):
     """  # type: ignore[method-assign]
 
     destination, clf = graph.router.route(
-        "There is a quiz master project report file in docs format. Can you summarize it?",
+        "Give me an overview of the quiz master project report file in docs format.",
         graph.session_state,
     )
 

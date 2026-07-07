@@ -485,8 +485,12 @@ class FileIndex:
                     "SELECT EXISTS(SELECT 1 FROM files WHERE root = ? LIMIT 1)", (root_str,)
                 ).fetchone()
                 return not bool(row[0])
-        except Exception:
-            return True  # Treat as empty on any error (will trigger build)
+        except Exception as exc:
+            import sqlite3
+            if isinstance(exc, sqlite3.OperationalError) and "no such table" in str(exc):
+                return True
+            print(f"[FileIndex] _root_is_empty check failed: {exc}. Assuming not empty to prevent accidental full rebuild.")
+            return False
 
     def build(self, progress_cb=None, batch_size: int = 500) -> int:
         """

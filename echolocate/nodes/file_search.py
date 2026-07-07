@@ -171,8 +171,6 @@ class FileSearchNode:
         # beats every other heuristic when it actually narrows the set.
         results = _apply_location_hint(results, location_hint, raw_utterance or file_reference or "")
 
-        caveat = " (I'm still finishing indexing your files, so there may be more.)" if self._index_possibly_incomplete() else ""
-
         if len(results) == 1:
             match = results[0]
             cleaned_ref = _clean_reference(file_reference) or ""
@@ -182,7 +180,7 @@ class FileSearchNode:
                 session_state.last_referenced_file = match["path"]
                 session_state.add_turn("assistant", f"Found: {match['name']}")
                 date_hint = _format_date_friendly(match.get("modified_iso", ""))
-                return f"Found {_describe_location(match['path'])}{', saved ' + date_hint if date_hint else ''}.{caveat}"
+                return f"Found {_describe_location(match['path'])}{', saved ' + date_hint if date_hint else ''}."
             session_state.pending_intent = PendingIntent(
                 raw_utterance=raw_utterance or (file_reference or ""),
                 partial_entities={"candidate_file": match["path"], "candidate_name": match["name"]},
@@ -190,7 +188,7 @@ class FileSearchNode:
                 original_intent=clf.intent,
             )
             session_state.add_turn("assistant", f"Proposed: {match['name']}")
-            return f"The closest match I found is {_describe_location(match['path'])}. Is that the one you meant?{caveat}"
+            return f"The closest match I found is {_describe_location(match['path'])}. Is that the one you meant?"
 
         top, runner_up = results[0], results[1]
         if _clearly_better(top, runner_up, file_reference):
@@ -201,7 +199,7 @@ class FileSearchNode:
                 original_intent=clf.intent,
             )
             session_state.add_turn("assistant", f"Proposed: {top['name']}")
-            return f"Found {_describe_location(top['path'])}. Is that the one you meant?{caveat}"
+            return f"Found {_describe_location(top['path'])}. Is that the one you meant?"
 
         # Genuine ambiguity. If names collide (e.g. two files both
         # literally named "hello.txt" in different folders), a bare
@@ -217,7 +215,7 @@ class FileSearchNode:
             original_intent=clf.intent,
         )
         label_list = ", ".join(f"'{c}'" for c in labels[:-1]) + f", or '{labels[-1]}'"
-        return f"I found a few matching files: {label_list}. Which one?{caveat}"
+        return f"I found a few matching files: {label_list}. Which one?"
 
     def _search(
         self,
@@ -274,13 +272,6 @@ class FileSearchNode:
             key=lambda r: (r.get("match_score", 0), r.get("modified_iso", "")),
             reverse=True,
         )
-
-    def _index_possibly_incomplete(self) -> bool:
-        try:
-            from echolocate.mcp_server.tools.search_files import is_still_indexing
-            return is_still_indexing(self.sandbox_root)
-        except Exception:
-            return False
 
 
 def _extract_file_type_hint(reference: Optional[str]) -> Optional[str]:
@@ -418,15 +409,11 @@ def _clearly_better(top: dict, runner_up: dict, reference: Optional[str]) -> boo
         return True
 
     if top_score == runner_score and top_score > 0:
-        top_depth = top["path"].count("/")
-        runner_depth = runner_up["path"].count("/")
-        if top_depth != runner_depth:
-            return top_depth < runner_depth
-
         try:
             from datetime import datetime
             t1 = datetime.fromisoformat(top.get("modified_iso", ""))
             t2 = datetime.fromisoformat(runner_up.get("modified_iso", ""))
+            # Only consider it clearly better if one is MUCH newer (e.g. edited within the last week vs months ago)
             if abs((t1 - t2).total_seconds()) > 7 * 86400:
                 return True
         except Exception:

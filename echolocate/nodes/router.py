@@ -337,15 +337,12 @@ class IntentRouter:
         router LLM that may be busy with document generation.
         """
         lower = utterance.lower()
-        direct_content = bool(re.search(
-            r"\b(retrieve|get|read|show|extract|keep)\b.*\b(content|contents|text|from it|from the file)\b",
+        has_action = bool(re.search(
+            r"\b(retrieve|get|read|show|extract|keep|find|locate|search|where is|look for|open|move|delete|rename|summarize|tell me|explain)\b",
             lower,
         ))
-        explicit_name = bool(re.search(r"\b(named|called|name is|named as)\b", lower))
-        explicit_type = bool(re.search(r"\b(txt|text|pdf|docx|docs|doc|markdown|md)\b", lower))
-        plain_find = bool(re.search(r"\b(find|locate|search|look for)\b", lower))
-
-        if not ((direct_content and (explicit_name or explicit_type)) or (plain_find and explicit_name and explicit_type)):
+        
+        if not has_action:
             return None
 
         clf = self._fallback_classify(utterance, session_state)

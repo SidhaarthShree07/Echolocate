@@ -67,25 +67,3 @@ def _is_drive_root(path: Path) -> bool:
     return resolved == Path(resolved.anchor)
 
 
-def is_still_indexing(sandbox_root: Path) -> bool:
-    """
-    True if the currently-active backend's results might be incomplete
-    right now -- used to attach an honest caveat to a resolution that
-    happened to land while the index was still catching up (this is
-    exactly what happened in the transcript that motivated this function:
-    a fresh D:\\ scan had JUST started, so a single-candidate "confident"
-    match may only have been the sole copy found SO FAR, not the only copy
-    that exists). Windows Search's own background indexing progress isn't
-    cheaply introspectable from here, so this only reports True for the
-    local SQLite index backend -- a reasonable, honest scope: local
-    indexing has a clear start/end this process controls, Windows' own
-    indexer is the OS's concern and callers already know registering a new
-    scope means "results may be incomplete for now" from ensure_indexed()'s
-    log message.
-    """
-    try:
-        from echolocate.mcp_server.index import get_index
-        idx = get_index(sandbox_root)
-        return bool(idx.is_building)
-    except Exception:
-        return False
