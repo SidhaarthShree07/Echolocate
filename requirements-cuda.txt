@@ -1,0 +1,4 @@
+# NVIDIA CUDA/cuDNN packages for GPU acceleration on Windows
+nvidia-cublas-cu12>=12.0
+nvidia-cudnn-cu12>=9.0
+nvidia-cuda-runtime-cu12>=12.0

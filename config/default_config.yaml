@@ -1,0 +1,23 @@
+activation_mode: wakeword
+audit_log_path: ~/.echolocate/audit.log
+avatar_style: girl
+conversation_mode: true
+hardware_tier: constrained
+hotkey: space
+llm_model: gemma4:e4b
+router_confidence_threshold: 0.7
+sandbox_root: D:/
+session_timeout_seconds: 300
+stop_hotkey: escape
+stt_device: auto
+stt_language: en
+stt_model: small.en
+tts_engine: kokoro
+tts_speed: 1.0
+tts_voice: af_heart
+vad_min_speech_ms: 350
+vad_silence_ms: 1200
+vad_threshold: 0.65
+wake_ack_phrase: yes boss
+wake_word_model: hey_friday
+wake_word_threshold: 0.5

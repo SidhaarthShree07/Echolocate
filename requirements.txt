@@ -1,0 +1,54 @@
+# EchoLocate — pinned dependency manifest
+# IMPORTANT: Do NOT upgrade litellm past 1.82.6 — versions 1.82.7 and 1.82.8
+# were affected by a known supply-chain compromise.
+# IMPORTANT: google-adk pinned to 2.3.0 for stable graph Workflow + Skills API.
+
+# Agent framework
+google-adk==2.3.0
+
+# LLM connector — pinned exactly, supply-chain reason above
+litellm==1.82.6
+
+# Speech-to-text
+faster-whisper==1.1.1
+
+# Voice Activity Detection — silero-vad-lite bundles ONNX Runtime directly;
+# zero Python dependencies, no PyTorch required. Do NOT substitute the
+# official silero-vad package (hard-depends on torch+torchaudio).
+silero-vad-lite==0.2.1
+
+# TTS — kokoro-onnx uses onnxruntime; genuine cross-platform Windows/Linux/macOS
+kokoro-onnx==0.5.0
+
+# Wake word (opt-in; default activation is push-to-talk)
+openwakeword==0.6.0
+
+# Document extraction
+pymupdf4llm==0.0.19
+markitdown==0.1.2
+
+# Date parsing (deterministic, zero-LLM)
+dateparser==1.2.0
+
+# Audio I/O
+sounddevice==0.5.1
+soundfile==0.13.1
+numpy>=1.24
+
+# MCP server SDK
+mcp==1.9.4
+
+# Real-time filesystem monitoring (ReadDirectoryChangesW on Windows,
+# inotify on Linux, FSEvents on macOS) — used by index.py to keep the
+# SQLite file index live within ~1s of any change. Falls back to periodic
+# polling if not installed (safe, just slower to reflect new files).
+watchdog>=6.0.0
+
+# Typing / utilities
+pydantic>=2.7,<3.0
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# Testing
+pytest>=8.0
+pytest-asyncio>=0.24

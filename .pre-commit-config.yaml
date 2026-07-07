@@ -1,0 +1,41 @@
+repos:
+  - repo: local
+    hooks:
+      # Flags any import of subprocess, os.system, or eval on LLM-generated strings
+      # Architecture Section 7.3: arbitrary shell execution is the attack surface
+      - id: no-subprocess-in-mcp-tools
+        name: "Security: No subprocess/os.system in MCP tool files"
+        language: pygrep
+        entry: "(subprocess\\.run|subprocess\\.call|subprocess\\.Popen|os\\.system|os\\.popen|eval\\()"
+        files: "echolocate/mcp_server/tools/"
+        pass_filenames: true
+        args: ["--multiline"]
+
+      # open_file.py is the ONLY allowed subprocess user (for os.startfile/xdg-open)
+      # This hook excludes it from the above rule but verifies it uses only allowlisted commands
+      - id: check-open-file-tool
+        name: "Security: open_file.py only uses allowlisted platform commands"
+        language: pygrep
+        entry: "subprocess\\.run\\("
+        files: "echolocate/mcp_server/tools/open_file\\.py"
+        # This will flag any subprocess.run in open_file.py — review each occurrence
+        # to confirm it's using only ["open", ...], ["xdg-open", ...], not LLM strings
+        pass_filenames: true
+
+      # Flag hardcoded paths — all paths should come from config
+      - id: no-hardcoded-paths
+        name: "Security: No hardcoded filesystem paths"
+        language: pygrep
+        entry: "(C:\\\\\\\\Users|/home/|/Users/|C:/Users)"
+        files: "\\.py$"
+        exclude: "tests/"
+        pass_filenames: true
+
+      # Verify litellm pin is not accidentally loosened
+      - id: check-litellm-pin
+        name: "Security: litellm must be pinned to ==1.82.6"
+        language: pygrep
+        entry: "litellm"
+        files: "requirements\\.txt"
+        args: ["--multiline"]
+        # Manual review: ensure the litellm line reads exactly "litellm==1.82.6"

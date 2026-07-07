@@ -1,0 +1,32 @@
+# EchoLocate â€” model configuration
+# Select a hardware tier in default_config.yaml or by setting
+# ECHOLOCATE_HARDWARE_TIER=standard|constrained
+
+tiers:
+  # Standard tier: separate models per role (recommended)
+  # Disk: ~2.5GB (E2B) + ~5GB (E4B) = ~7.5GB total
+  # RAM:  ~3GB router inference + ~6GB document inference
+  standard:
+    router_model: "gemma4:e2b"        # ~2.3B effective params; intent classification
+    document_model: "gemma4:e4b"      # ~4.5B effective params; document reasoning + tool calling
+    system_model: "gemma4:e4b"        # system executor uses same reasoning model
+
+  # Constrained tier: single model for all roles
+  # Disk: ~2.5GB; RAM: ~3GB
+  constrained:
+    router_model: "gemma4:e2b"
+    document_model: "gemma4:e2b"
+    system_model: "gemma4:e2b"
+
+# Active tier â€” overridden by installer based on available RAM
+active_tier: "constrained"
+
+# Ollama connection (loopback only; no outbound network)
+ollama_base_url: "http://localhost:11434"
+ollama_provider: "ollama_chat"
+
+# Context window sizes (tokens)
+router_context_tokens: 4096
+document_context_tokens: 32768
+document_compaction_threshold: 24576   # trigger EventsCompactionConfig at 75% of window
+
