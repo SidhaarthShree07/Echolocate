@@ -555,6 +555,8 @@ def _score_local_candidate(
                 return None
         if keyword and ext in {"txt", "md"}:
             try:
+                if stat.st_size > 5 * 1024 * 1024:
+                    return None  # Skip keyword search for massive files to prevent OOM / hangs
                 if keyword not in path.read_text(encoding="utf-8", errors="ignore").lower():
                     return None
                 score += 1

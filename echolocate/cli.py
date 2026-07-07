@@ -616,13 +616,15 @@ def interactive_menu():
         print(f"  {C_BOLD}Hardware:{C_RESET}  {config.get('hardware_tier', 'standard')} tier")
         print(f"  {C_BOLD}Avatar Style:{C_RESET} {config.get('avatar_style', 'girl')}")
         print(f"{C_GRAY}──────────────────────────────────────────────────────────{C_RESET}")
-        print(f"  {C_BOLD}[1]{C_RESET} Start EchoLocate Agent")
-        print(f"  {C_BOLD}[2]{C_RESET} Edit Settings / Configuration")
-        print(f"  {C_BOLD}[3]{C_RESET} Run System Diagnostics (Check Ollama & Audio)")
-        print(f"  {C_BOLD}[4]{C_RESET} Exit")
+        print(f"  {C_BOLD}[1]{C_RESET} Start Agent in Terminal (Foreground)")
+        print(f"  {C_BOLD}[2]{C_RESET} Start Agent in Background (Daemon)")
+        print(f"  {C_BOLD}[3]{C_RESET} Stop Background Agent")
+        print(f"  {C_BOLD}[4]{C_RESET} Edit Settings / Configuration")
+        print(f"  {C_BOLD}[5]{C_RESET} Run System Diagnostics")
+        print(f"  {C_BOLD}[6]{C_RESET} Exit")
         print(f"{C_GRAY}──────────────────────────────────────────────────────────{C_RESET}")
 
-        choice = input(f"{C_BOLD}Enter choice (1-4): {C_RESET}").strip()
+        choice = input(f"{C_BOLD}Enter choice (1-6): {C_RESET}").strip()
         if choice == "1":
             ensure_ollama_running()
             from echolocate.main import main as run_main
@@ -632,10 +634,16 @@ def interactive_menu():
                 print(f"\n{C_YELLOW}EchoLocate stopped.{C_RESET}")
             time.sleep(1.5)
         elif choice == "2":
-            edit_config_wizard()
+            start_daemon(silent=False)
+            time.sleep(2)
         elif choice == "3":
-            run_diagnostics()
+            stop_daemon(silent=False)
+            time.sleep(2)
         elif choice == "4":
+            edit_config_wizard()
+        elif choice == "5":
+            run_diagnostics()
+        elif choice == "6":
             print("\nGoodbye!")
             break
 

@@ -322,6 +322,8 @@ def catch_up(file_index, sandbox_root: Path, verbose: bool = True) -> bool:
         for _usn, reason, frn, parent_frn, filename in _iter_journal_records(
             _read_fn, cursor["journal_id"], cursor["next_usn"], info["next_usn"]
         ):
+            if (n_upserts + n_removes + n_skipped) % 1000 == 0:
+                time.sleep(0.005)  # Yield to prevent lock starvation on large journals
             try:
                 if reason & REMOVE_REASONS:
                     parent_path = _resolve_path_by_frn(volume_handle, parent_frn)
