@@ -20,34 +20,9 @@ By utilizing local semantic search and file indexing, EchoLocate can understand 
 
 EchoLocate operates through an asynchronous agent graph, allowing dynamic routing of your intent to the correct localized tools.
 
-```mermaid
-graph TD
-    subgraph Input Layer
-        A[Microphone] -->|VAD| B(Speech Segment)
-        B -->|Faster-Whisper| C{Wake Word detected?}
-    end
-    
-    subgraph Processing Core
-        C -->|Yes| D[LLM Router - Gemma]
-        D -->|Query/Command| E(Tool Nodes)
-        
-        E --> F[Semantic Search]
-        E --> G[Document Summarization]
-        E --> H[System Automation]
-    end
-    
-    subgraph Output Layer
-        E --> I[LLM Response Generation]
-        I --> J[Kokoro TTS Engine]
-        J --> K[Speaker Audio]
-    end
-    
-    subgraph UI
-        C -.-> Z((Terminal LED Avatar))
-        D -.-> Z
-        I -.-> Z
-    end
-```
+![Workflow Diagram](assets/workflow_diagram.png)
+
+![Detailed Architecture Diagram](assets/detailed_architecture_diagram.png)
 
 ### Core Technologies
 - **LLM Engine:** Ollama running `gemma4:e4b` (or `e2b` for constrained hardware).
